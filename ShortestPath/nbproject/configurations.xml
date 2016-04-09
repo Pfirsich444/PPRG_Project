@@ -37,6 +37,7 @@
       <compileType>
         <ccTool>
           <standard>8</standard>
+          <commandLine>-fopenmp -pthread</commandLine>
         </ccTool>
       </compileType>
       <item path="shortestPath.cpp" ex="false" tool="1" flavor2="0">
