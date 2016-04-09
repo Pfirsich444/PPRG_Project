@@ -1,6 +1,6 @@
 /* 
  * File:   main.cpp
- * Author: Alex
+ * Author: Alexander Schmid, Angelika Kadnar
  *
  * Created on 9. April 2016, 08:55
  */
@@ -32,7 +32,7 @@ struct node
     vector<node> passedNodes;
 };
 
-bool bellmanFord(const vector<edge> edges, node* Nodes, int numberOfNodes)
+bool bellmanFord(const vector<edge> edges, node* Nodes, int numberOfNodes, bool isPathTracked)
 {
     Nodes[0].value = 0;
     
@@ -40,25 +40,18 @@ bool bellmanFord(const vector<edge> edges, node* Nodes, int numberOfNodes)
     {
         for(int j = 0; j < edges.size(); j++)
         {
-            /*if(Nodes[edges.at(j).startingNode].value >= ULLONG_MAX - abs(edges.at(j).weight))
-            {
-                cout << "value reaches infinity: " << Nodes[edges.at(j).startingNode].value << endl;
-                cout << "kljlkj: " << ULLONG_MAX - abs(edges.at(j).weight) << endl;
-                
-                bool someBool = (Nodes[edges.at(j).startingNode].value >= ULLONG_MAX - abs(edges.at(j).weight));
-                cout << "bool: " << someBool << endl;
-                return false;
-            }*/
             if(Nodes[edges.at(j).startingNode].value + edges.at(j).weight < Nodes[edges.at(j).endingNode].value && edges.at(j).endingNode != 0)
             {
                 Nodes[edges.at(j).endingNode].value = Nodes[edges.at(j).startingNode].value + edges.at(j).weight;
                 
                 // only for small graphs for demonstration
-                //Nodes[edges.at(j).endingNode].passedNodes.clear();
-                //Nodes[edges.at(j).endingNode].passedNodes = Nodes[edges.at(j).startingNode].passedNodes;
-                //Nodes[edges.at(j).endingNode].passedNodes.push_back(Nodes[edges.at(j).startingNode]);
+                if(isPathTracked)
+                {
+                    Nodes[edges.at(j).endingNode].passedNodes.clear();
+                    Nodes[edges.at(j).endingNode].passedNodes = Nodes[edges.at(j).startingNode].passedNodes;
+                    Nodes[edges.at(j).endingNode].passedNodes.push_back(Nodes[edges.at(j).startingNode]);
+                }
             }
-            //cout << "Starting node: " << edges.at(j).startingNode << " i: " << i << endl;
         }
     }
     
@@ -75,34 +68,27 @@ bool bellmanFord(const vector<edge> edges, node* Nodes, int numberOfNodes)
     return true;
 }
 
-bool bellmanFordP(const vector<edge> edges, node* Nodes, int numberOfNodes)
+bool bellmanFordP(const vector<edge> edges, node* Nodes, int numberOfNodes, bool isPathTracked)
 {
     Nodes[0].value = 0;
     
     for(int i = 0; i < numberOfNodes-1; i++)
     {
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic, 100)
         for(int j = 0; j < edges.size(); j++)
         {
-            /*if(Nodes[edges.at(j).startingNode].value >= ULLONG_MAX - abs(edges.at(j).weight))
-            {
-                cout << "value reaches infinity: " << Nodes[edges.at(j).startingNode].value << endl;
-                cout << "kljlkj: " << ULLONG_MAX - abs(edges.at(j).weight) << endl;
-                
-                bool someBool = (Nodes[edges.at(j).startingNode].value >= ULLONG_MAX - abs(edges.at(j).weight));
-                cout << "bool: " << someBool << endl;
-                return false;
-            }*/
             if(Nodes[edges.at(j).startingNode].value + edges.at(j).weight < Nodes[edges.at(j).endingNode].value && edges.at(j).endingNode != 0)
             {
                 Nodes[edges.at(j).endingNode].value = Nodes[edges.at(j).startingNode].value + edges.at(j).weight;
                 
                 // only for small graphs for demonstration
-                //Nodes[edges.at(j).endingNode].passedNodes.clear();
-                //Nodes[edges.at(j).endingNode].passedNodes = Nodes[edges.at(j).startingNode].passedNodes;
-                //Nodes[edges.at(j).endingNode].passedNodes.push_back(Nodes[edges.at(j).startingNode]);
+                if(isPathTracked)
+                {
+                    Nodes[edges.at(j).endingNode].passedNodes.clear();
+                    Nodes[edges.at(j).endingNode].passedNodes = Nodes[edges.at(j).startingNode].passedNodes;
+                    Nodes[edges.at(j).endingNode].passedNodes.push_back(Nodes[edges.at(j).startingNode]);
+                }
             }
-            //cout << "Starting node: " << edges.at(j).startingNode << " i: " << i << endl;
         }
     }
     
@@ -132,10 +118,9 @@ bool checkIfExisting(const vector<edge> edges, int startingNode, int endingNode)
 vector<edge> generateGraph(int numberOfNodes, int numberOfEdges, int minWeight, int maxWeight)
 {
     vector<edge> Edges;
-    
-    int i = 0;
     srand(time(0));
-    while(i < numberOfEdges)
+    
+    for(int i = 0; i < numberOfEdges; i++)
     {
         int startingNode = rand() % numberOfNodes;
         int endingNode = startingNode;
@@ -145,46 +130,22 @@ vector<edge> generateGraph(int numberOfNodes, int numberOfEdges, int minWeight, 
         }
         
         auto isExisting = checkIfExisting(Edges, startingNode, endingNode);
-        
         if(isExisting)
         {
+            i--;
             continue;
         }
         
         int weight = minWeight + (rand() % (maxWeight - minWeight +1));
         Edges.push_back(edge{startingNode, endingNode, weight});
-        cout << "Start: " << startingNode << ", End: " << endingNode << ", Weight: " << weight << endl;
-        i++;
     }
     
     return Edges;
 }
 
-int main(int argc, char** argv) {
-
-    int numberOfNodes;
-    int numberOfEdges;
-    int minWeight;
-    int maxWeight;
-    
-    cout << "Enter number of nodes: " << endl;
-    cin >> numberOfNodes;
-    
-    cout << "Enter number of edges: " << endl;
-    cin >> numberOfEdges;
-    
-    cout << "Enter minimum weight: " << endl;
-    cin >> minWeight;
-    
-    cout << "Enter maximum weight: " << endl;
-    cin >> maxWeight;
-    
-    
-    
-    auto Edges = generateGraph(numberOfNodes, numberOfEdges, minWeight, maxWeight);
-    
+vector<edge> generateSimpleSample()
+{
     // simple graph example
-    /*
     vector<edge> Edges;
     Edges.push_back(edge{0,1,10});
     Edges.push_back(edge{0,5,8});
@@ -193,20 +154,25 @@ int main(int argc, char** argv) {
     Edges.push_back(edge{3,2,-2});
     Edges.push_back(edge{4,3,-1});
     Edges.push_back(edge{4,1,-4});
-    Edges.push_back(edge{5,4,1});*/
+    Edges.push_back(edge{5,4,1});
     
+    return Edges;
+}
+
+vector<edge> generateNegativeCycle()
+{
     // negative cycles example
-    /*vector<edge> Edges;
+    vector<edge> Edges;
     Edges.push_back(edge{0,1,-20});
     Edges.push_back(edge{1,2,10});
     Edges.push_back(edge{2,1,-15});
-    Edges.push_back(edge{2,0,5});*/
+    Edges.push_back(edge{2,0,5});
     
-    //array<node, 4> Nodes;
-    
-    node* Nodes = new node[numberOfNodes];
-    node* NodesP = new node[numberOfNodes];
-    
+    return Edges;
+}
+
+void InitializeNodes(node* Nodes, node* NodesP, int numberOfNodes, int maxWeight)
+{
     for(int i=0;i<numberOfNodes; i++)
     {
         Nodes[i].name = i;
@@ -214,113 +180,135 @@ int main(int argc, char** argv) {
         NodesP[i].name = i;
         NodesP[i].value = LLONG_MAX - maxWeight -1;
     }
-    
+}
+
+chrono::time_point<chrono::system_clock> StartTimer(string startText)
+{
     chrono::time_point<chrono::system_clock> start;
-    start = chrono::system_clock::now();
-    cout << "-----Start-----" << endl;
-    bool isSuccess = bellmanFord(Edges, Nodes, numberOfNodes);
+    cout << "-----Start " << startText << "-----" << endl;
+    return chrono::system_clock::now();
+}
+
+void EndTimer(chrono::time_point<chrono::system_clock> start)
+{
+    chrono::duration<double> elapsed_seconds = chrono::system_clock::now()-start;
+    cout << "-----Time: " << elapsed_seconds.count() << "-----" << endl;
+}
+
+void SaveNodesToFile(node* Nodes, int numberOfNodes, string filename)
+{
+    ofstream myfile;
+    myfile.open (filename);
+    for(int i = 0; i < numberOfNodes; i++)
+    {
+        myfile << Nodes[i].name << " : " << Nodes[i].value << "   " << endl;
+    }
+    myfile.close();
+}
+
+void PrintNodes(node* Nodes, int numberOfNodes)
+{
+    for(int i = 0; i < numberOfNodes; i++)
+    {
+        cout << "Node: ";
+        cout << Nodes[i].name;
+        cout << ", Value: ";
+        cout << Nodes[i].value;
+        cout << "   ";
+        Nodes[i].passedNodes.push_back(Nodes[i]);
+        
+        for (std::vector<node>::const_iterator j = Nodes[i].passedNodes.begin(); j != Nodes[i].passedNodes.end(); ++j)
+        {
+            cout << j->name;
+                        
+            if((j != Nodes[i].passedNodes.end()) && (next(j) == Nodes[i].passedNodes.end()))
+            {
+                break;
+            }
+            cout << " -> ";
+        }
+        
+        cout << endl;
+    }
+    cout << endl;
+}
+
+int main(int argc, char** argv) {
+
+    int numberOfNodes;
+    int numberOfEdges;
+    int minWeight;
+    int maxWeight = 0;
+    int numberOfThreads;
+    int mode;
+    vector<edge> Edges;
+    
+    cout << "Press 1 for random graph generation, 2 for small example graph, 3 for negative cycles example" << endl;
+    cin >> mode;
+    
+    if(mode !=2 && mode != 3)
+    {
+        cout << "Enter number of nodes: " << endl;
+        cin >> numberOfNodes;
+
+        cout << "Enter number of edges: " << endl;
+        cin >> numberOfEdges;
+
+        cout << "Enter minimum weight: " << endl;
+        cin >> minWeight;
+
+        cout << "Enter maximum weight: " << endl;
+        cin >> maxWeight;
+        
+        Edges = generateGraph(numberOfNodes, numberOfEdges, minWeight, maxWeight);
+    }
+    
+    cout << "Choose number of threads: " << endl;
+    cin >> numberOfThreads;
+    
+    omp_set_num_threads(numberOfThreads);
+    
+    if(mode == 2)
+    {
+        Edges = generateSimpleSample();
+        numberOfNodes = 6;
+    }
+    if(mode == 3)
+    {
+        Edges = generateNegativeCycle();
+        numberOfNodes = 3;
+    }
+    
+    node* Nodes = new node[numberOfNodes];
+    node* NodesP = new node[numberOfNodes];
+    
+    InitializeNodes(Nodes, NodesP, numberOfNodes, maxWeight);
+
+    // Seriell:
+    auto start = StartTimer("seriell");
+    bool isSuccess = bellmanFord(Edges, Nodes, numberOfNodes, mode != 1);
+    
+    EndTimer(start);
+    SaveNodesToFile(Nodes, numberOfNodes, "seriell.txt");
+    
     if(!isSuccess)
     {
         cout << "There are negative cycles!" << endl;
         return 0;
     }    
     
-    /*for(int i = 0; i < numberOfNodes; i++)
-    {
-        cout << Nodes[i].name << " : " << Nodes[i].value << "   ";
-        
-        Nodes[i].passedNodes.push_back(Nodes[i]);
-        
-        for (std::vector<node>::const_iterator j = Nodes[i].passedNodes.begin(); j != Nodes[i].passedNodes.end(); ++j)
-        {
-            cout << j->name;
-                        
-            if((j != Nodes[i].passedNodes.end()) && (next(j) == Nodes[i].passedNodes.end()))
-            {
-                break;
-            }
-            cout << " -> ";
-        }
-        
-        cout << endl;
-    }*/
-    chrono::duration<double> elapsed_seconds = chrono::system_clock::now()-start;
-    cout << "-----Time: " << elapsed_seconds.count() << "-----" << endl;
+    // Parallel:
+    auto startParallel = StartTimer("parallel");
+    bellmanFordP(Edges, NodesP, numberOfNodes, mode != 1);
     
-    ofstream myfile;
-    myfile.open ("seriell.txt");
-    for(int i = 0; i < numberOfNodes; i++)
+    EndTimer(startParallel);
+    SaveNodesToFile(NodesP, numberOfNodes, "parallel.txt");
+    
+    if(mode != 1)
     {
-        myfile << Nodes[i].name << " : " << Nodes[i].value << "   " << endl;
+        PrintNodes(Nodes, numberOfNodes);
+        PrintNodes(NodesP, numberOfNodes);
     }
-    myfile.close();
-    
-    start = chrono::system_clock::now();
-    cout << "-----Start-----" << endl;
-    bool isSuccessP = bellmanFordP(Edges, NodesP, numberOfNodes);
-    if(!isSuccessP)
-    {
-        cout << "There are negative cycles!" << endl;
-        return 0;
-    }    
-    
-    /*for(int i = 0; i < numberOfNodes; i++)
-    {
-        cout << NodesP[i].name << " : " << NodesP[i].value << "   ";
-        
-        NodesP[i].passedNodes.push_back(NodesP[i]);
-        
-        for (std::vector<node>::const_iterator j = NodesP[i].passedNodes.begin(); j != NodesP[i].passedNodes.end(); ++j)
-        {
-            cout << j->name;
-                        
-            if((j != NodesP[i].passedNodes.end()) && (next(j) == NodesP[i].passedNodes.end()))
-            {
-                break;
-            }
-            cout << " -> ";
-        }
-        
-        cout << endl;
-    }*/
-    elapsed_seconds = chrono::system_clock::now()-start;
-    cout << "-----Time: " << elapsed_seconds.count() << "-----" << endl;
-    
-    ofstream myfile2;
-    myfile2.open ("parallel.txt");
-    for(int i = 0; i < numberOfNodes; i++)
-    {
-        myfile2 << NodesP[i].name << " : " << NodesP[i].value << "   " << endl;
-    }
-    myfile2.close();
-    
-    /*if(!isSuccess)
-    {
-        cout << "There are negative cycles!" << endl;
-        return 0;
-    }    
-    
-    for(int i = 0; i < numberOfNodes; i++)
-    {
-        cout << Nodes[i].name << " : " << Nodes[i].value << "   ";
-        
-        Nodes[i].passedNodes.push_back(Nodes[i]);
-        
-        for (std::vector<node>::const_iterator j = Nodes[i].passedNodes.begin(); j != Nodes[i].passedNodes.end(); ++j)
-        {
-            cout << j->name;
-                        
-            if((j != Nodes[i].passedNodes.end()) && (next(j) == Nodes[i].passedNodes.end()))
-            {
-                break;
-            }
-            cout << " -> ";
-        }
-        
-        cout << endl;
-    }*/
-    
-    
     
     delete[] Nodes;
     delete[] NodesP;
