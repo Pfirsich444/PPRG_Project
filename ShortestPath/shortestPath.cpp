@@ -27,7 +27,7 @@ struct node
     vector<node> passedNodes;
 };
 
-void bellmanFord(const vector<edge> edges, array<node, 6> &Nodes)
+bool bellmanFord(const vector<edge> edges, array<node, 4> &Nodes)
 {
     Nodes[0].value = 0;
     
@@ -44,24 +44,60 @@ void bellmanFord(const vector<edge> edges, array<node, 6> &Nodes)
                 Nodes[edge.endingNode].passedNodes.push_back(Nodes[edge.startingNode]);
             }
         }
-        
     }
     
+    // nach dem Beenden der obigen for Schleife sollte überall der kürzeste Pfad gespeichert sein.
+    // wenn es bei der folgenden Überprüfung noch einen kürzeren Pfad gibt, liegen negative cycles vor.
+    for (auto &edge : edges)
+    {
+        if(Nodes[edge.startingNode].value + edge.weight < Nodes[edge.endingNode].value)
+        {
+            return false;
+        }
+    }
+    
+    return true;
 }
 
 int main(int argc, char** argv) {
 
     vector<edge> Edges;
-    Edges.push_back(edge{0,1,10});
+    int numberOfNodes;
+    int numberOfEdges;
+    int minWeight;
+    int maxWeight;
+    
+    cout << "Enter number of nodes: " << endl;
+    cin >> numberOfNodes;
+    
+    cout << "Enter number of edges: " << endl;
+    cin >> numberOfEdges;
+    
+    cout << "Enter minimum weight: " << endl;
+    cin >> minWeight;
+    
+    cout << "Enter maximum weight: " << endl;
+    cin >> maxWeight;
+    
+    
+    
+    // simple graph example
+    /*Edges.push_back(edge{0,1,10});
     Edges.push_back(edge{0,5,8});
     Edges.push_back(edge{1,3,2});
     Edges.push_back(edge{2,1,1});
     Edges.push_back(edge{3,2,-2});
     Edges.push_back(edge{4,3,-1});
     Edges.push_back(edge{4,1,-4});
-    Edges.push_back(edge{5,4,1});
+    Edges.push_back(edge{5,4,1});*/
     
-    array<node, 6> Nodes;
+    // negative cycles example
+    Edges.push_back(edge{0,1,-20});
+    Edges.push_back(edge{1,2,10});
+    Edges.push_back(edge{2,1,-15});
+    Edges.push_back(edge{2,0,5});
+    
+    array<node, 4> Nodes;
     
     for(int i=0;i<Nodes.size(); i++)
     {
@@ -69,7 +105,13 @@ int main(int argc, char** argv) {
         Nodes[i].value = 1000000;
     }
     
-    bellmanFord(Edges, Nodes);
+    bool isSuccess = bellmanFord(Edges, Nodes);
+    
+    if(!isSuccess)
+    {
+        cout << "There are negative cycles!" << endl;
+        return 0;
+    }    
     
     for(int i = 0; i < Nodes.size(); i++)
     {
